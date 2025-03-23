@@ -104,29 +104,74 @@ def repeat_intention(intention_text, duration):
         time.sleep(1)
     print(f"✅ Finished repeating: {intention_text}")
 
+import hashlib
+
 @app.route('/run-intention', methods=['POST'])
 def run_intention():
     data = request.json
-    intention = data.get("intention")
-    duration = data.get("duration", 60)
+    intention = data.get("intention", "").strip()
+    duration = int(data.get("duration", 60))  # in seconds
+    frequency = float(data.get("frequency", 0))  # Hz
+    boost = bool(data.get("boost", False))
+    multiplier = int(data.get("multiplier", 1))
 
     if not intention:
         return jsonify({"success": False, "message": "No intention provided."}), 400
 
-    thread = threading.Thread(target=repeat_intention, args=(intention, duration))
-    thread.start()
+    def sha512(message):
+        return hashlib.sha512(message.encode('utf-8')).hexdigest().upper()
 
-    active_intentions.append({"intention": intention, "duration": duration})
+    def repeat_intention():
+        start_time = time.time()
+        total_iterations = 0
+
+        interval = (1 / frequency) if frequency > 0 else 0.001  # default to as fast as possible
+
+        while time.time() - start_time < duration:
+            text_to_hash = intention
+            if boost:
+                text_to_hash = sha512(text_to_hash + ': ' + intention)
+            hash_result = sha512(text_to_hash)
+
+            total_iterations += multiplier
+            print(f"🔁 [{total_iterations}] {hash_result[:16]}...")
+
+            time.sleep(interval)
+
+        print(f"✅ Finished repeating: {intention} — Total Iterations: {total_iterations}")
+
+    threading.Thread(target=repeat_intention).start()
 
     return jsonify({
         "success": True,
         "message": f"Intention is now running for {duration} seconds.",
-        "intention": intention
+        "intention": intention,
+        "frequency": frequency,
+        "boost": boost,
+        "multiplier": multiplier
     })
+📦 Update requirements.txt
+Make sure these lines are included:
 
-# ---------------------------------------------
-# RUN APP
-# ---------------------------------------------
+nginx
+Copy
+Edit
+flask
+pandas
+rapidfuzz
+You do not need to install hashlib — it's built-in.
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+🧪 Example PowerShell Call (Using All Options)
+powershell
+Copy
+Edit
+Invoke-RestMethod -Uri "https://healing-codes-production.up.railway.app/run-intention" `
+    -Method POST `
+    -Headers @{"Content-Type"="application/json"} `
+    -Body '{
+      "intention": "I am divinely protected",
+      "duration": 10,
+      "frequency": 2.0,
+      "boost": true,
+      "multiplier": 3
+    }'
